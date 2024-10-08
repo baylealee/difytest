@@ -1,8 +1,12 @@
 name: Process vendorex Segmentation
+
+# 支援手動觸發和文件變更觸發
 on:
   push:
     paths:
       - 'vendorex.xlsx'  # 當 vendorex.xlsx 文件有變更時觸發
+  workflow_dispatch:  # 手動觸發
+
 jobs:
   process:
     runs-on: ubuntu-latest
