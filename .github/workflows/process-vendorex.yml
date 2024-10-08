@@ -1,0 +1,30 @@
+name: Process vendorex Segmentation
+on:
+  push:
+    paths:
+      - 'vendorex.xlsx'  # 當 vendorex.xlsx 文件有變更時觸發
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Call Dify API for processing
+        run: |
+          curl -X POST "https://api.dify.com/process" \
+          -H "Authorization: Bearer YOUR_DIFY_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{
+                "file_url": "https://raw.githubusercontent.com/your_repo/customers.csv",
+                "process_type": "customer_segmentation",
+                "output_format": "csv"
+              }' > processed_customers.csv
+
+      - name: Commit the processed file back to GitHub
+        run: |
+          git config --global user.email "btokaahi@gmail.com"
+          git config --global user.name "baylea"
+          git add processed_vendorex.csv
+          git commit -m "Processed customer segmentation and updated CSV"
+          git push
