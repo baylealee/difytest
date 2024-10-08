@@ -12,19 +12,19 @@ jobs:
 
       - name: Call Dify API for processing
         run: |
-          curl -X POST "https://api.dify.com/process" \
-          -H "Authorization: Bearer YOUR_DIFY_API_KEY" \
+          curl -X POST "https://api.dify.ai/v1" \
+          -H "Authorization: Bearer app-Zhkmaz6JQgaSooV4NWuSIj7Z" \
           -H "Content-Type: application/json" \
           -d '{
-                "file_url": "https://raw.githubusercontent.com/your_repo/customers.csv",
-                "process_type": "customer_segmentation",
+                "file_url": "https://raw.githubusercontent.com/baylealee/difytest/main/vendorex.xlsx",
+                "process_type": "vendor_segmentation",
                 "output_format": "csv"
-              }' > processed_customers.csv
+              }' > processed_vendorex.csv
 
       - name: Commit the processed file back to GitHub
         run: |
           git config --global user.email "btokaahi@gmail.com"
           git config --global user.name "baylea"
           git add processed_vendorex.csv
-          git commit -m "Processed customer segmentation and updated CSV"
+          git commit -m "Processed vendorex segmentation and updated CSV"
           git push
