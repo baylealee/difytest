@@ -10,6 +10,11 @@ on:
 jobs:
   process:
     runs-on: ubuntu-latest
+
+    # 確保 GitHub Actions 具有推送權限
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
