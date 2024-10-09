@@ -19,8 +19,8 @@ jobs:
 
       - name: Authenticate with GitHub token
         run: |
-          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
-          git config user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
 
       - name: Install dependencies
         run: |
@@ -28,15 +28,20 @@ jobs:
           sudo apt-get install -y jq
 
       - name: Call Dify Agent API for processing
+        env:
+          AGENT_ID: "your_actual_agent_id"  # 请替换为您的实际 Agent ID
+          DIFY_API_TOKEN: ${{ secrets.DIFY_API_TOKEN }}
         run: |
           set -e
+          set -x  # 打开调试模式
+
           # 检查 vendorex.xlsx 是否存在
           if [ ! -f vendorex.xlsx ]; then
             echo "File vendorex.xlsx not found!"
             exit 1
           fi
 
-          # 准备文件
+          # 准备文件（使用 base64 编码）
           base64_file=$(base64 vendorex.xlsx | tr -d '\n')
 
           # 构建请求数据
@@ -48,9 +53,9 @@ jobs:
 
           echo "Request Data: $request_data"
 
-          # 调用 Dify Agent API（请替换 {agent_id} 为您的实际 Agent ID）
-          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.dify.ai/v1/agents/{agent_id}/chat-messages" \
-            -H "Authorization: Bearer ${{ secrets.DIFY_API_TOKEN }}" \
+          # 调用 Dify Agent API
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.dify.ai/v1/agents/$AGENT_ID/chat-messages" \
+            -H "Authorization: Bearer $DIFY_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$request_data")
 
@@ -73,6 +78,7 @@ jobs:
 
           if [ -z "$file_content" ] || [ "$file_content" == "null" ]; then
             echo "No file content received from API"
+            echo "Reply Content: $reply_content"
             exit 1
           fi
 
@@ -80,4 +86,10 @@ jobs:
           echo "$file_content" | base64 -d > processed_vendorex.xlsx
 
           # 输出回复内容（摘要或错误信息）
-          echo "$rep
+          echo "$reply_content"
+
+      - name: Commit the processed file back to GitHub
+        run: |
+          git add processed_vendorex.xlsx
+          git commit -m "Processed vendorex segmentation and updated file"
+          git push
