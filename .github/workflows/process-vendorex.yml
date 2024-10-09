@@ -29,7 +29,7 @@ jobs:
 
       - name: Call Dify Agent API for processing
         env:
-          AGENT_ID: "bdc1c80a-3620-4680-b53b-710dbd4db025"  # 请替换为您的实际 Agent ID
+          AGENT_ID: "bdc1c80a-3620-4680-b53b-710dbd4db025"  # 使用您的实际 App ID
           DIFY_API_TOKEN: ${{ secrets.DIFY_API_TOKEN }}
         run: |
           set -e
@@ -54,7 +54,7 @@ jobs:
           echo "Request Data: $request_data"
 
           # 调用 Dify Agent API
-          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.dify.ai/v1/agents/$AGENT_ID/chat-messages" \
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.dify.ai/v1/apps/$AGENT_ID/agent-messages" \
             -H "Authorization: Bearer $DIFY_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$request_data")
@@ -73,8 +73,8 @@ jobs:
           fi
 
           # 处理响应
-          reply_content=$(echo "$response_body" | jq -r '.choices[0].message.content')
-          file_content=$(echo "$response_body" | jq -r '.choices[0].message.files[0].content')
+          reply_content=$(echo "$response_body" | jq -r '.answer')
+          file_content=$(echo "$response_body" | jq -r '.data.files[0].content')
 
           if [ -z "$file_content" ] || [ "$file_content" == "null" ]; then
             echo "No file content received from API"
