@@ -29,7 +29,7 @@ jobs:
 
       - name: Call Dify Agent API for processing
         env:
-          AGENT_ID: "35rMctbswaPfchLh"  # 请替换为您的实际 Agent ID
+          AGENT_ID: "bdc1c80a-3620-4680-b53b-710dbd4db025"  # 请替换为您的实际 Agent ID
           DIFY_API_TOKEN: ${{ secrets.DIFY_API_TOKEN }}
         run: |
           set -e
