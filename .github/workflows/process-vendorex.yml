@@ -1,60 +1,56 @@
-name: Process vendorex Segmentation
+- name: Call Dify Agent API for processing
+  run: |
+    set -x
+    sudo apt-get update && sudo apt-get install -y jq
 
-on:
-  push:
-    paths:
-      - 'vendorex.xlsx'  # 当 vendorex.xlsx 文件有变更时触发
-  workflow_dispatch:    # 支持手动触发
+    # 检查文件是否存在
+    if [ ! -f vendorex.xlsx ]; then
+      echo "File vendorex.xlsx not found!"
+      exit 1
+    fi
 
-jobs:
-  process:
-    runs-on: ubuntu-latest
+    # 准备文件
+    base64_file=$(base64 vendorex.xlsx | tr -d '\n')
 
-    permissions:
-      contents: write
+    # 构建请求数据
+    request_data=$(jq -n \
+      --arg content "请处理以下文件" \
+      --arg filename "vendorex.xlsx" \
+      --arg file_content "$base64_file" \
+      '{inputs: [{role: "user", content: $content, files: [{name: $filename, content: $file_content}]}]}')
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    echo "Request Data: $request_data"
 
-      - name: Authenticate with GitHub token
-        run: |
-          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
-          git config user.name "${{ secrets.GIT_USER_NAME }}"
+    # 调用 Dify Agent API（请替换 {agent_id}）
+    response=$(curl -s -X POST "https://api.dify.ai/v1/agents/{agent_id}/chat-messages" \
+      -H "Authorization: Bearer ${{ secrets.DIFY_API_TOKEN }}" \
+      -H "Content-Type: application/json" \
+      -d "$request_data")
 
-      - name: Call Dify Agent API for processing
-        run: |
-          # 安装 jq（如未安装）
-          sudo apt-get update && sudo apt-get install -y jq
+    if [ $? -ne 0 ]; then
+      echo "Curl command failed"
+      exit 1
+    fi
 
-          # 准备文件
-          base64_file=$(base64 -w 0 vendorex.xlsx)
+    echo "API Response: $response"
 
-          # 构建请求数据
-          request_data=$(jq -n \
-            --arg content "请处理以下文件" \
-            --arg filename "vendorex.xlsx" \
-            --arg file_content "$base64_file" \
-            '{inputs: [{role: "user", content: $content, files: [{name: $filename, content: $file_content}]}]}')
+    # 检查响应是否包含错误
+    if echo "$response" | jq -e '.error' > /dev/null; then
+      echo "Received error from API: $(echo "$response" | jq '.error')"
+      exit 1
+    fi
 
-          # 调用 Dify Agent API（请替换 {agent_id} 和 {api_endpoint}）
-          response=$(curl -s -X POST "https://api.dify.ai/v1/agents/bdc1c80a-3620-4680-b53b-710dbd4db025/chat-messages" \
-            -H "Authorization: Bearer ${{ secrets.DIFY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "$request_data")
+    # 提取回复内容和文件
+    reply_content=$(echo "$response" | jq -r '.choices[0].message.content')
+    file_content=$(echo "$response" | jq -r '.choices[0].message.files[0].content')
 
-          # 提取回复内容和文件
-          reply_content=$(echo "$response" | jq -r '.choices[0].message.content')
-          file_content=$(echo "$response" | jq -r '.choices[0].message.files[0].content')
+    if [ -z "$file_content" ] || [ "$file_content" == "null" ]; then
+      echo "No file content received from API"
+      exit 1
+    fi
 
-          # 将文件内容解码并保存
-          echo "$file_content" | base64 -d > processed_vendorex.xlsx
+    # 解码并保存文件
+    echo "$file_content" | base64 -d > processed_vendorex.xlsx
 
-          # 输出回复内容（摘要或错误信息）
-          echo "$reply_content"
-
-      - name: Commit the processed file back to GitHub
-        run: |
-          git add processed_vendorex.xlsx
-          git commit -m "Processed vendorex segmentation and updated file"
-          git push
+    # 输出回复内容
+    echo "$reply_content"
