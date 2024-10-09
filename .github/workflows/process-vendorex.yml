@@ -22,13 +22,22 @@ jobs:
           git config user.email "${{ secrets.GIT_USER_EMAIL }}"
           git config user.name "${{ secrets.GIT_USER_NAME }}"
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Call Dify Agent API for processing
         run: |
-          # 安装 jq（如未安装）
-          sudo apt-get update && sudo apt-get install -y jq
+          set -e
+          # 检查 vendorex.xlsx 是否存在
+          if [ ! -f vendorex.xlsx ]; then
+            echo "File vendorex.xlsx not found!"
+            exit 1
+          fi
 
           # 准备文件
-          base64_file=$(base64 -w 0 vendorex.xlsx)
+          base64_file=$(base64 vendorex.xlsx | tr -d '\n')
 
           # 构建请求数据
           request_data=$(jq -n \
@@ -37,24 +46,38 @@ jobs:
             --arg file_content "$base64_file" \
             '{inputs: [{role: "user", content: $content, files: [{name: $filename, content: $file_content}]}]}')
 
-          # 调用 Dify Agent API（请替换 {agent_id} 和 {api_endpoint}）
-          response=$(curl -s -X POST "https://api.dify.ai/v1/agents/{agent_id}/chat-messages" \
+          echo "Request Data: $request_data"
+
+          # 调用 Dify Agent API（请替换 {agent_id} 为您的实际 Agent ID）
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.dify.ai/v1/agents/{agent_id}/chat-messages" \
             -H "Authorization: Bearer ${{ secrets.DIFY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$request_data")
 
-          # 提取回复内容和文件
-          reply_content=$(echo "$response" | jq -r '.choices[0].message.content')
-          file_content=$(echo "$response" | jq -r '.choices[0].message.files[0].content')
+          # 分离响应主体和 HTTP 状态码
+          http_status=$(echo "$response" | tail -n1)
+          response_body=$(echo "$response" | sed '$ d')
 
-          # 将文件内容解码并保存
+          echo "HTTP Status: $http_status"
+          echo "Response Body: $response_body"
+
+          # 检查 HTTP 状态码是否不是 200
+          if [ "$http_status" -ne 200 ]; then
+            echo "API request failed with status code $http_status"
+            exit 1
+          fi
+
+          # 处理响应
+          reply_content=$(echo "$response_body" | jq -r '.choices[0].message.content')
+          file_content=$(echo "$response_body" | jq -r '.choices[0].message.files[0].content')
+
+          if [ -z "$file_content" ] || [ "$file_content" == "null" ]; then
+            echo "No file content received from API"
+            exit 1
+          fi
+
+          # 解码并保存文件
           echo "$file_content" | base64 -d > processed_vendorex.xlsx
 
           # 输出回复内容（摘要或错误信息）
-          echo "$reply_content"
-
-      - name: Commit the processed file back to GitHub
-        run: |
-          git add processed_vendorex.xlsx
-          git commit -m "Processed vendorex segmentation and updated file"
-          git push
+          echo "$rep
