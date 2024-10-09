@@ -22,7 +22,7 @@
     echo "Request Data: $request_data"
 
     # 调用 Dify Agent API（请替换 {agent_id}）
-    response=$(curl -s -X POST "https://api.dify.ai/v1/agents/{agent_id}/chat-messages" \
+    response=$(curl -s -X POST "https://api.dify.ai/v1/agents/35rMctbswaPfchLh/chat-messages" \
       -H "Authorization: Bearer ${{ secrets.DIFY_API_TOKEN }}" \
       -H "Content-Type: application/json" \
       -d "$request_data")
